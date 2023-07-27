@@ -10,7 +10,7 @@ import numpy as np
 # import joblib
 
 
-warnings.filterwarnings('ignore')
+# warnings.filterwarnings('ignore')
 
 # %%
 weather_data_main_future = pd.read_csv('01_mtb_weather_data_main_future_out.csv')
@@ -18,8 +18,6 @@ weather_data_main_future = pd.read_csv('01_mtb_weather_data_main_future_out.csv'
 # %%
 weather_data_main_future.columns
 
-# %%
-import joblib
 
 # Load the dictionary of models
 trail_models = joblib.load('02_trail_models.joblib')
