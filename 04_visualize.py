@@ -1,11 +1,10 @@
-import streamlit as st
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import matplotlib.colors as mcolors
 
-st.set_page_config(layout="wide")
+import boto3
 
 # Read the CSV file
 pivot_df = pd.read_csv('03_preds_viz.csv')
@@ -46,4 +45,11 @@ plt.yticks(rotation=0)
 ax.set_yticks(range(len(pivot_df['Date'])))
 ax.set_yticklabels(pivot_df['Date'].dt.strftime('%Y-%m-%d'), fontsize=8)  # Adjust the fontsize
 
-st.pyplot(fig, use_container_width=True)
+# Save the figure
+filename = 'daily_trail_condition_predictions.png'
+fig.savefig(filename, dpi=300, bbox_inches='tight')
+
+# Upload the image to S3
+bucket_name = 'mtb-trail-condition-predictions'  # Change this to your bucket name
+s3 = boto3.client('s3')
+s3.upload_file(filename, bucket_name, filename)
