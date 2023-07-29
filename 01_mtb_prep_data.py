@@ -34,10 +34,10 @@ warnings.filterwarnings('ignore')
 
 # %%
 data = {
-    'DATE': ['2023-07-26'],
+    'DATE': ['2023-07-29'],
     'MAX TEMPERATURE': ['90'],
-    'AVG WIND': [4],
-    'TOTAL PRECIPITATION': [0]
+    'AVG WIND': [10],
+    'TOTAL PRECIPITATION': [2.79]
 }
 
 # Create the DataFrame
