@@ -1,5 +1,9 @@
-# %% [markdown]
-# # Import Packages
+data = {
+    'DATE': ['2023-07-29'],
+    'MAX TEMPERATURE': ['86'],
+    'AVG WIND': [10],
+    'TOTAL PRECIPITATION': [0.15]
+}
 
 # %%
 import pickle
@@ -33,12 +37,7 @@ warnings.filterwarnings('ignore')
 # # TEMPORARY MANUAL INPUT STEP
 
 # %%
-data = {
-    'DATE': ['2023-07-29'],
-    'MAX TEMPERATURE': ['90'],
-    'AVG WIND': [10],
-    'TOTAL PRECIPITATION': [2.79]
-}
+
 
 # Create the DataFrame
 yesterday_weather= pd.DataFrame(data)

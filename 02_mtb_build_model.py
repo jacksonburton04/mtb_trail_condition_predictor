@@ -99,7 +99,7 @@ for trail in unique_trails:
     random_search = RandomizedSearchCV(estimator=xgb,
                                        param_distributions=param_dist,
                                     #    n_iter=250, #  Number of parameter settings that are sampled
-                                       n_iter=5,   
+                                       n_iter=100,   
                                        scoring='roc_auc',  # You can change this to the metric you want to optimize
                                     #    cv=5,  # Cross-validation splitting strategy
                                        cv=skf,
