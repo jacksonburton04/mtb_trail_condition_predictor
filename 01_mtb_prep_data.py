@@ -1,8 +1,8 @@
 data = {
-    'DATE': ['2023-07-29'],
-    'MAX TEMPERATURE': ['86'],
-    'AVG WIND': [10],
-    'TOTAL PRECIPITATION': [0.15]
+    'DATE': ['2023-07-30'],
+    'MAX TEMPERATURE': ['87'],
+    'AVG WIND': [8],
+    'TOTAL PRECIPITATION': [0.00]
 }
 
 # %%
@@ -395,7 +395,7 @@ plt.title('MAX TEMPERATURE over Time')
 plt.xlabel('DATE')
 plt.ylabel('MAX TEMPERATURE')
 plt.grid(False)
-plt.show()
+plt.show(block=False)
 
 
 # %%
@@ -407,7 +407,7 @@ plt.title('TOTAL PRECIPITATION over Time')
 plt.xlabel('DATE')
 plt.ylabel('TOTAL PRECIPITATION')
 plt.grid(True)
-plt.show()
+plt.show(block=False)
 
 # %%
 unique_trails = trail_df['trail'].unique().tolist()

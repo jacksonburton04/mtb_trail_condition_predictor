@@ -45,6 +45,8 @@ plt.yticks(rotation=0)
 ax.set_yticks(range(len(pivot_df['Date'])))
 ax.set_yticklabels(pivot_df['Date'].dt.strftime('%Y-%m-%d'), fontsize=11)  # Adjust the fontsize
 
+plt.show(block=False)
+
 # Save the figure
 filename = 'daily_trail_condition_predictions.png'
 import boto3

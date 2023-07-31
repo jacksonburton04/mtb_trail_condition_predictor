@@ -143,7 +143,7 @@ for trail in unique_trails:
     shap.summary_plot(shap_values, trail_X_train, plot_size=None, show=False)
     plt.tick_params(axis='y', which='major', labelsize=8)  # Set y-tick label size
     plt.tight_layout()
-    plt.show()
+    plt.show(block=False)
 
     shap_values_df = pd.DataFrame(shap_values, columns=trail_X_train.columns)
     shap_values_all.append(shap_values_df)
