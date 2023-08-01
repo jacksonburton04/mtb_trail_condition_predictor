@@ -7,7 +7,7 @@ import matplotlib.colors as mcolors
 import boto3
 
 # Read the CSV file
-pivot_df = pd.read_csv('03_preds_viz.csv')
+pivot_df = pd.read_csv('data/03_preds_viz.csv')
 pivot_df['Date'] = pd.to_datetime(pivot_df['Date'], errors='coerce')
 
 # Define custom colormap
@@ -48,18 +48,19 @@ ax.set_yticklabels(pivot_df['Date'].dt.strftime('%Y-%m-%d'), fontsize=11)  # Adj
 plt.show(block=False)
 
 # Save the figure
-filename = 'daily_trail_condition_predictions.png'
 import boto3
 
 # Save the figure
-filename = 'daily_trail_condition_predictions.png'
-fig.savefig(filename, dpi=300, bbox_inches='tight')
+filename_local = 'data/daily_trail_condition_predictions.png'
+filename_s3 = 'data/daily_trail_condition_predictions.png'
+
+fig.savefig(filename_local, dpi=300, bbox_inches='tight')
 
 # Upload the image to S3
 bucket_name = 'mtb-trail-condition-predictions'  # Change this to your bucket name
 s3 = boto3.client('s3')
 
 # Set the ACL to 'public-read' to allow public access
-s3.upload_file(filename, bucket_name, filename, ExtraArgs={'ACL': 'public-read'})
+s3.upload_file(filename_s3, bucket_name, filename_s3, ExtraArgs={'ACL': 'public-read'})
 
 print("Done! Check your S3 bucket for the image.")

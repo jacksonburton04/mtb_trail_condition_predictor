@@ -28,7 +28,7 @@ import joblib
 
 warnings.filterwarnings('ignore')
 
-model_df = pd.read_csv('01_mtb_model_df_out.csv')
+model_df = pd.read_csv('data/01_mtb_model_df_out.csv')
 model_df = model_df.drop(model_df.columns[0], axis=1)
 
 # %% [markdown]
@@ -188,7 +188,7 @@ print(model_evaluations_df.merge(test_evaluations_df, how = 'inner', on = 'trail
 
 
 # Save the dictionary of models
-joblib.dump(trail_models, '02_trail_models.joblib')
+joblib.dump(trail_models, 'data/02_trail_models.joblib')
 
 print("saved models")
 

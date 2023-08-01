@@ -13,7 +13,7 @@ import matplotlib.dates as mdates
 warnings.filterwarnings('ignore')
 
 # %%
-weather_data_main_future = pd.read_csv('01_mtb_weather_data_main_future_out.csv')
+weather_data_main_future = pd.read_csv('data/01_mtb_weather_data_main_future_out.csv')
 
 # %%
 weather_data_main_future.columns
@@ -22,7 +22,7 @@ weather_data_main_future.columns
 import joblib
 
 # Load the dictionary of models
-trail_models = joblib.load('02_trail_models.joblib')
+trail_models = joblib.load('data/02_trail_models.joblib')
 
 # %% [markdown]
 # # Make Predictions
@@ -112,11 +112,11 @@ all_results = pd.DataFrame(columns=['Date', 'CORA Trail', 'Chance of Being Open'
 
 # Check if the output file exists
 try:
-    output_df = pd.read_csv('output_file_cora.csv')
+    output_df = pd.read_csv('data/output_file_cora.csv')
 except FileNotFoundError:
     # If the file doesn't exist, create a new file with headers
-    all_results.to_csv('output_file_cora.csv', index=False)
-    output_df = pd.read_csv('output_file_cora.csv')
+    all_results.to_csv('data/output_file_cora.csv', index=False)
+    output_df = pd.read_csv('data/output_file_cora.csv')
 
 all_results = all_results.append(results_df, ignore_index=True)
 
@@ -124,7 +124,7 @@ all_results = all_results.append(results_df, ignore_index=True)
 output_df = output_df.append(results_df, ignore_index=True)
 
 # Save the updated output file
-output_df.to_csv('output_file_cora.csv', index=False)
+output_df.to_csv('data/output_file_cora.csv', index=False)
 
 output_df.head(3)
 
@@ -191,4 +191,4 @@ pivot_df = pivot_df.reindex(sorted(pivot_df.columns), axis=1)
 print(pivot_df)
 
 ## WRITE OUT FOR VISUALIZE SCRIPT
-pivot_df.to_csv('03_preds_viz.csv')
+pivot_df.to_csv('data/03_preds_viz.csv')

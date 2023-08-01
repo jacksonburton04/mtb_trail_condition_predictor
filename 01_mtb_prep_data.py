@@ -1,6 +1,6 @@
 data = {
-    'DATE': ['2023-07-30'],
-    'MAX TEMPERATURE': ['87'],
+    'DATE': ['2023-07-31'],
+    'MAX TEMPERATURE': ['80'],
     'AVG WIND': [8],
     'TOTAL PRECIPITATION': [0.00]
 }
@@ -53,7 +53,7 @@ lookback_days_list = [2, 3, 7]
 
 
 # %%
-df = pd.read_csv('cora-history-raw.csv')
+df = pd.read_csv('data/cora-history-raw.csv')
 df['date_clean'] = df['date'].str[:10]
 df["date_clean"] = pd.to_datetime(df["date_clean"])
 data = df.copy().sort_values(by="date", ascending=False)
@@ -99,7 +99,7 @@ trail_df.sort_values(['trail','date_clean']).head(5)
 # # Load in NOAA Weather Data, Process
 
 # %%
-weather_df = pd.read_csv(noaa_id + '.csv')
+weather_df = pd.read_csv('data/' +noaa_id + '.csv')
 print(weather_df['DATE'].min())
 print(weather_df['DATE'].max())
 
@@ -265,7 +265,7 @@ days=7
 location = 'Cincinnati, OH'
 
 # Load future weather data
-pickle_file = 'weather_data.pickle'
+pickle_file = 'data/weather_data.pickle'
 url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&exclude={exclude}&appid={api_key}&units=imperial"
 
 if os.path.exists(pickle_file) and datetime.fromtimestamp(os.path.getmtime(pickle_file)).date() == datetime.now().date():
@@ -322,7 +322,7 @@ def get_weather_data(lat, lon, date, api_key):
 lat = 39.1031
 lon = -84.5120
 
-pickle_file = 'historical_one_week.pickle'
+pickle_file = 'data/historical_one_week.pickle'
 if os.path.exists(pickle_file) and datetime.fromtimestamp(os.path.getmtime(pickle_file)).date() == datetime.now().date():
     with open(pickle_file, 'rb') as f:
         historical_one_week = pickle.load(f)
@@ -492,8 +492,8 @@ datetime_cols = model_df.select_dtypes(include=[np.datetime64, 'datetime', 'date
 model_df['date_clean'] = model_df['date_clean'].astype('datetime64[ns]')
 model_df['target'] = model_df['target'].astype('int64')
 # # Write Out Data
-model_df.to_csv('01_mtb_model_df_out.csv')
-weather_data_main_future.to_csv('01_mtb_weather_data_main_future_out.csv')
+model_df.to_csv('data/01_mtb_model_df_out.csv')
+weather_data_main_future.to_csv('data/01_mtb_weather_data_main_future_out.csv')
 
 print("Script Complete")
 
