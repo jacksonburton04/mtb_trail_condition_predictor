@@ -1,7 +1,7 @@
-data = {
-    'DATE': ['2023-07-31'],
-    'MAX TEMPERATURE': ['80'],
-    'AVG WIND': [8],
+data_yesterday = {
+    'DATE': ['2023-08-03'],
+    'MAX TEMPERATURE': ['81'],
+    'AVG WIND': [6],
     'TOTAL PRECIPITATION': [0.00]
 }
 
@@ -30,17 +30,63 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.decomposition import PCA
+import boto3
+import json
+import time
+import os
+from cryptography.fernet import Fernet
 
 warnings.filterwarnings('ignore')
 
-# %% [markdown]
-# # TEMPORARY MANUAL INPUT STEP
+# from googleapiclient.discovery import build
+# from google_auth_oauthlib.flow import InstalledAppFlow
 
-# %%
+# SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+# CREDENTIALS_PATH = '/Users/jacksonburton/Documents/tech_projects/full_projects/creds/g_sheets_mtb_weather_creds.json'
+# SPREADSHEET_ID = '1MgF0cVUuf6L2yemHfydQGERZt8fe7IirK_eUr-OisPk'
+# RANGE_NAME = 'Sheet1!A:D'
+# flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
+# creds = flow.run_local_server(port=0)
+# service = build('sheets', 'v4', credentials=creds)
+# sheet = service.spreadsheets()
+# result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range=RANGE_NAME).execute()
+# values = result.get('values', [])
+
+# keys = values[0]
+# data = {key: [] for key in keys}
+
+# for row in values[1:]:
+#     for i, value in enumerate(row):
+#         if keys[i] == 'AVG WIND' or keys[i] == 'TOTAL PRECIPITATION':
+#             data[keys[i]].append(float(value))
+#         else:
+#             data[keys[i]].append(value)
+
+
+
+# def lambda_handler(event, context):
+#     # Define the S3 bucket and file
+#     bucket = 'mtb-trail-condition-predictions'
+#     key = 'daily_weather.json'
+
+#     # Create an S3 client
+#     s3 = boto3.client('s3')
+
+#     # Read the file from S3
+#     response = s3.get_object(Bucket=bucket, Key=key)
+#     file_content = response['Body'].read().decode('utf-8')
+#     data = json.loads(file_content)
+
+#     response = s3.get_object(Bucket=bucket, Key=key)
+#     file_content = response['Body'].read().decode('utf-8')
+#     data = json.loads(file_content)
+
+#     return data
+
 
 
 # Create the DataFrame
-yesterday_weather= pd.DataFrame(data)
+yesterday_weather= pd.DataFrame(data_yesterday)
 yesterday_weather['MAX TEMPERATURE'] = pd.to_numeric(yesterday_weather['MAX TEMPERATURE'])
 yesterday_weather
 
@@ -53,7 +99,22 @@ lookback_days_list = [2, 3, 7]
 
 
 # %%
-df = pd.read_csv('data/cora-history-raw.csv')
+# df = pd.read_csv('data/cora-history-raw.csv')
+
+# Create a client connection to S3
+s3_client = boto3.client('s3')
+
+# Specify the bucket name and key for the CSV file
+bucket_name = 'mtb-trail-condition-predictions'
+file_key = 'data/cora-history-raw.csv'
+
+# Use the S3 client to retrieve the file object
+obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+
+# Read the file's contents into a Pandas DataFrame
+print("Reading in file from S3 bucket")
+df = pd.read_csv(obj['Body'])
+print(df.head(5))
 df['date_clean'] = df['date'].str[:10]
 df["date_clean"] = pd.to_datetime(df["date_clean"])
 data = df.copy().sort_values(by="date", ascending=False)
@@ -99,7 +160,13 @@ trail_df.sort_values(['trail','date_clean']).head(5)
 # # Load in NOAA Weather Data, Process
 
 # %%
-weather_df = pd.read_csv('data/' +noaa_id + '.csv')
+# weather_df = pd.read_csv('data/' +noaa_id + '.csv')
+
+file_key = 'data/NOAA_3392043.csv'
+obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+weather_df = pd.read_csv(obj['Body'])
+
+
 print(weather_df['DATE'].min())
 print(weather_df['DATE'].max())
 
@@ -231,14 +298,14 @@ model_df['target'] = pd.Categorical(model_df['target'])
 # # Load Open Weather API Key (Encrypted)
 
 # %%
-import os
+
 print(os.getcwd())
 
 # %%
 print(os.path.exists('openweatheronecall.key'))  # returns True if file exists
 
 # %%
-from cryptography.fernet import Fernet
+
 
 def load_key():
     return open("/Users/jacksonburton/Documents/tech_projects/key.key", "rb").read()
@@ -491,6 +558,8 @@ weather_data_main_future = weather_data_main[future_dates_mask]
 datetime_cols = model_df.select_dtypes(include=[np.datetime64, 'datetime', 'datetime64']).columns.tolist()
 model_df['date_clean'] = model_df['date_clean'].astype('datetime64[ns]')
 model_df['target'] = model_df['target'].astype('int64')
+
+
 # # Write Out Data
 model_df.to_csv('data/01_mtb_model_df_out.csv')
 weather_data_main_future.to_csv('data/01_mtb_weather_data_main_future_out.csv')

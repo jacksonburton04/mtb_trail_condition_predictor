@@ -3,7 +3,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import matplotlib.colors as mcolors
-
 import boto3
 
 # Read the CSV file
@@ -47,12 +46,10 @@ ax.set_yticklabels(pivot_df['Date'].dt.strftime('%Y-%m-%d'), fontsize=11)  # Adj
 
 plt.show(block=False)
 
-# Save the figure
-import boto3
 
 # Save the figure
 filename_local = 'data/daily_trail_condition_predictions.png'
-filename_s3 = 'data/daily_trail_condition_predictions.png'
+filename_s3 = 'daily_trail_condition_predictions.png'
 
 fig.savefig(filename_local, dpi=300, bbox_inches='tight')
 
@@ -61,6 +58,6 @@ bucket_name = 'mtb-trail-condition-predictions'  # Change this to your bucket na
 s3 = boto3.client('s3')
 
 # Set the ACL to 'public-read' to allow public access
-s3.upload_file(filename_s3, bucket_name, filename_s3, ExtraArgs={'ACL': 'public-read'})
+s3.upload_file(filename_local, bucket_name, filename_s3, ExtraArgs={'ACL': 'public-read'})
 
 print("Done! Check your S3 bucket for the image.")

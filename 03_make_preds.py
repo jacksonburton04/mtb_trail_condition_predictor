@@ -9,6 +9,11 @@ import matplotlib.pyplot as plt
 import warnings
 import matplotlib as mpl
 import matplotlib.dates as mdates
+import datetime as dt
+from matplotlib import colors as mcolors
+from datetime import date
+from matplotlib.colors import ListedColormap, BoundaryNorm
+from datetime import datetime, timedelta
 
 warnings.filterwarnings('ignore')
 
@@ -96,7 +101,7 @@ predictions_df
 # # Save & Write Out Predictions
 
 # %%
-import datetime as dt
+
 
 # Create separate variables for the long and short date formats
 now = dt.datetime.now()
@@ -136,9 +141,7 @@ output_df_no_dups = output_df.sort_values('execution_date_long', ascending = Fal
 # output_df_no_dups[output_df_no_dups['CORA Trail'] == 'Devou Park'].sort_values('execution_date_long', ascending = False)
 
 # %%
-from matplotlib import colors as mcolors
-from datetime import date
-from matplotlib.colors import ListedColormap, BoundaryNorm
+
 
 # %% [markdown]
 # # Primary Data Viz
@@ -153,7 +156,6 @@ output_df_no_dups['Date'] = pd.to_datetime(output_df_no_dups['Date'], errors='co
 # Filter 'Date' by today or greater
 today = pd.to_datetime(date.today())
 
-from datetime import datetime, timedelta
 
 # Subtract one day to get yesterday's date
 yesterday = today - timedelta(days=1)
