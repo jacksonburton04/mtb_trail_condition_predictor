@@ -9,10 +9,15 @@ import boto3
 pivot_df = pd.read_csv('data/03_preds_viz.csv')
 pivot_df['Date'] = pd.to_datetime(pivot_df['Date'], errors='coerce')
 
+# ROUND PREDS DOWN TO THE NEXT LOWEST 5
+cols = [col for col in pivot_df.columns if col != 'Date']
+
+pivot_df[cols] = pivot_df[cols].apply(lambda x: (x // 5) * 5)
+
 # Define custom colormap
 cmap = mcolors.LinearSegmentedColormap.from_list("n", ["red", "yellow", "green"])
 boundaries = [0, 10, 25, 75, 90, 100]
-colors = ["darkred", "red", "yellow", "lightgreen", "darkgreen"]
+colors = ["darkred", "lightcoral", "lightyellow", "lightgreen", "darkgreen"]
 cmap = ListedColormap(colors)
 norm = BoundaryNorm(boundaries, cmap.N, clip=True)
 
@@ -21,7 +26,10 @@ fig, ax = plt.subplots(figsize=(15, 7))  # Adjust this to fit your display
 plt.xticks(fontsize=10)  # Adjust the font size
 # plt.yticks(fontsize=10)  # Adjust the font size
 
-plt.title('Chance of Being Open by CORA Trail', fontsize=30, pad=30)  # Added pad=20
+from datetime import datetime
+
+today_date = datetime.today().strftime('%Y-%m-%d')
+plt.title(f"Likelihood CORA Trail Open for Riding: Last Updated ({today_date})", fontsize=18, pad=20)
 
 data = pivot_df.drop(columns=['Date'])
 

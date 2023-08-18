@@ -68,13 +68,13 @@ print("modeling started, will take a while")
 param_dist = {
     'n_estimators': range(50, 200, 50),
     'max_depth': range(2, 6),
-    'min_child_weight': range(1, 8),
+    'min_child_weight': range(7, 35),
     'gamma': [i/10.0 for i in range(0, 10)],
     'subsample': [i/10.0 for i in range(3, 9)],
     'colsample_bytree': [i/10.0 for i in range(7, 11)],
     'learning_rate': [0.01, 0.05, 0.1],
-    'reg_lambda': [0, 1, 10],
-    'reg_alpha': [0, 1, 10]
+    'reg_lambda': [0, 1, 2, 3],
+    'reg_alpha': [0, 1, 2, 3]
 }
 
 
@@ -98,8 +98,8 @@ for trail in unique_trails:
     # Create the RandomizedSearchCV object
     random_search = RandomizedSearchCV(estimator=xgb,
                                        param_distributions=param_dist,
-                                    #    n_iter=250, #  Number of parameter settings that are sampled
-                                       n_iter=100,   
+                                       n_iter=250, #  Number of parameter settings that are sampled
+                                    #    n_iter=3,   
                                        scoring='roc_auc',  # You can change this to the metric you want to optimize
                                     #    cv=5,  # Cross-validation splitting strategy
                                        cv=skf,

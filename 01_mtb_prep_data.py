@@ -1,7 +1,7 @@
 data_yesterday = {
-    'DATE': ['2023-08-03'],
+    'DATE': ['2023-08-17'],
     'MAX TEMPERATURE': ['81'],
-    'AVG WIND': [6],
+    'AVG WIND': [10],
     'TOTAL PRECIPITATION': [0.00]
 }
 
@@ -95,7 +95,7 @@ yesterday_weather
 
 # %%
 noaa_id = 'NOAA_3392043'
-lookback_days_list = [2, 3, 7]
+lookback_days_list = [2, 3, 5]
 
 
 # %%
@@ -365,9 +365,62 @@ future_weather = future_weather[['DATE', 'MAX TEMPERATURE', 'AVG WIND', 'TOTAL P
 future_weather
 
 # %%
-weather_data
+raw_weather_data = weather_data.copy()
+print("raw weather data")
+print(raw_weather_data.head(5))
 
-# %% [markdown]
+import imgkit
+
+def highlight_cells(val, column):
+    if column == 'TOTAL PRECIPITATION' and val > 1:
+        return 'background-color: red'
+    elif column == 'TOTAL PRECIPITATION' and val > 0.25:
+        return 'background-color: orange'
+    elif column == 'TOTAL PRECIPITATION' and val > 0:
+        return 'background-color: yellow'
+    elif column == 'PRECIPITATION PROBABILITY' and val > .85:
+        return 'background-color: red'
+    elif column == 'PRECIPITATION PROBABILITY' and val > 0.25:
+        return 'background-color: orange'
+    elif column == 'PRECIPITATION PROBABILITY' and val > 0:
+        return 'background-color: yellow'
+    else:
+        return ''
+
+styled_weather_data = raw_weather_data.style.apply(lambda x: [highlight_cells(v, c) for v, c in zip(x, x.index)], axis=1)
+
+styled_weather_data.format({
+    'MAX TEMPERATURE': "{:.0f}",
+    'AVG WIND': "{:.0f}",
+    'TOTAL PRECIPITATION': "{:.2f}",
+    'PRECIPITATION PROBABILITY': "{:.2f}"
+})
+
+table_styles = [
+    {"selector": "td", "props": [("text-align", "center")]},
+    {"selector": "th", "props": [("text-align", "center")]}
+]
+
+# Apply the styles
+styled_weather_data.set_table_styles(table_styles)
+
+# Rendering the HTML and saving as an image
+html = styled_weather_data.render()
+html_file = "data/weather_preds.html"
+with open(html_file, "w") as f:
+    f.write(html)
+
+image_file = "data/weather_preds.png"
+imgkit.from_file(html_file, image_file)
+
+# S3 upload code
+filename_local = 'data/weather_preds.png'
+filename_s3 = 'weather_preds.png'
+bucket_name = 'mtb-trail-condition-predictions'
+s3 = boto3.client('s3')
+s3.upload_file(filename_local, bucket_name, filename_s3, ExtraArgs={'ACL': 'public-read'})
+print("Done! Check your S3 bucket for the image.")
+
 # # Get Historical Weather Data One Week
 # - Outstanding issue: for some reason, I cannot pull yesterdays weather as of 9AM EST
 # - Maybe if I wait until later in the day to try and run this, this issue might resolve? Not sure
@@ -438,33 +491,7 @@ print(weather_append.head(10))
 # # Visualize Recent Weather Data and Future Forecast
 weather_sorted = weather_append.sort_values(by='DATE', ascending=False).head(10)
 weather_sorted.set_index('DATE', inplace=True)
-weather_sorted['MAX TEMPERATURE'] = pd.to_numeric(weather_sorted['MAX TEMPERATURE'], errors='coerce')
-
-plt.figure(figsize=(14, 4))
-plt.plot(weather_sorted['MAX TEMPERATURE'], linewidth=4)
-
-# Find min and max values
-min_temp = weather_sorted['MAX TEMPERATURE'].min()
-max_temp = weather_sorted['MAX TEMPERATURE'].max()
-
-# Find the dates corresponding to the min and max temperatures
-min_date = weather_sorted[weather_sorted['MAX TEMPERATURE'] == min_temp].index[0]
-max_date = weather_sorted[weather_sorted['MAX TEMPERATURE'] == max_temp].index[0]
-
-# Annotate the min and max points on the graph
-plt.annotate(f'Min: {min_temp}', xy=(min_date, min_temp), xytext=(min_date, min_temp+5),
-             arrowprops=dict(facecolor='red', shrink=0.05))
-plt.annotate(f'Max: {max_temp}', xy=(max_date, max_temp), xytext=(max_date, max_temp+5),
-             arrowprops=dict(facecolor='green', shrink=0.05))
-
-plt.xticks(rotation=45)
-plt.title('MAX TEMPERATURE over Time')
-plt.xlabel('DATE')
-plt.ylabel('MAX TEMPERATURE')
-plt.grid(False)
-plt.show(block=False)
-
-
+print(weather_sorted.head(5))
 # %%
 # Plot TOTAL PRECIPITATION
 plt.figure(figsize=(15, 3))
@@ -475,6 +502,34 @@ plt.xlabel('DATE')
 plt.ylabel('TOTAL PRECIPITATION')
 plt.grid(True)
 plt.show(block=False)
+
+
+# weather_sorted['MAX TEMPERATURE'] = pd.to_numeric(weather_sorted['MAX TEMPERATURE'], errors='coerce')
+
+# plt.figure(figsize=(14, 4))
+# plt.plot(weather_sorted['MAX TEMPERATURE'], linewidth=4)
+
+# # Find min and max values
+# min_temp = weather_sorted['MAX TEMPERATURE'].min()
+# max_temp = weather_sorted['MAX TEMPERATURE'].max()
+
+# # Find the dates corresponding to the min and max temperatures
+# min_date = weather_sorted[weather_sorted['MAX TEMPERATURE'] == min_temp].index[0]
+# max_date = weather_sorted[weather_sorted['MAX TEMPERATURE'] == max_temp].index[0]
+
+# # Annotate the min and max points on the graph
+# plt.annotate(f'Min: {min_temp}', xy=(min_date, min_temp), xytext=(min_date, min_temp+5),
+#              arrowprops=dict(facecolor='red', shrink=0.05))
+# plt.annotate(f'Max: {max_temp}', xy=(max_date, max_temp), xytext=(max_date, max_temp+5),
+#              arrowprops=dict(facecolor='green', shrink=0.05))
+
+# plt.xticks(rotation=45)
+# plt.title('MAX TEMPERATURE over Time')
+# plt.xlabel('DATE')
+# plt.ylabel('MAX TEMPERATURE')
+# plt.grid(False)
+# plt.show(block=False)
+
 
 # %%
 unique_trails = trail_df['trail'].unique().tolist()

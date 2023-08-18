@@ -5,12 +5,8 @@ import requests
 import pandas as pd
 import numpy as np
 import seaborn as sns
-import matplotlib.pyplot as plt
 import warnings
-import matplotlib as mpl
-import matplotlib.dates as mdates
 import datetime as dt
-from matplotlib import colors as mcolors
 from datetime import date
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from datetime import datetime, timedelta
@@ -54,9 +50,10 @@ trained_features_order = ['AWND', 'PRCP', 'TMAX',
 'PRCP_2d', 'TMAX_2d', 
 'PRCP_3d', 'TMAX_3d', 
 # 'PRCP_4d', 'TMAX_4d', 
-#  'PRCP_5d', 'TMAX_5d', 
+ 'PRCP_5d', 'TMAX_5d' 
 #  'PRCP_6d', 'TMAX_6d', 
- 'PRCP_7d', 'TMAX_7d']
+#  'PRCP_7d', 'TMAX_7d'
+ ]
 
 for trail, model in trail_models.items():
     trail_future_indices = weather_data_main_future["trail"] == trail
