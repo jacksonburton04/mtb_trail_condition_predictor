@@ -1,9 +1,9 @@
-data_yesterday = {
-    'DATE': ['2023-08-17'],
-    'MAX TEMPERATURE': ['81'],
-    'AVG WIND': [10],
-    'TOTAL PRECIPITATION': [0.00]
-}
+# data_yesterday = {
+#     'DATE': ['2023-08-23'],
+#     'MAX TEMPERATURE': ['92'],
+#     'AVG WIND': [7],
+#     'TOTAL PRECIPITATION': [0.00]
+# }
 
 # %%
 import pickle
@@ -85,10 +85,10 @@ warnings.filterwarnings('ignore')
 
 
 
-# Create the DataFrame
-yesterday_weather= pd.DataFrame(data_yesterday)
-yesterday_weather['MAX TEMPERATURE'] = pd.to_numeric(yesterday_weather['MAX TEMPERATURE'])
-yesterday_weather
+# # Create the DataFrame
+# yesterday_weather= pd.DataFrame(data_yesterday)
+# yesterday_weather['MAX TEMPERATURE'] = pd.to_numeric(yesterday_weather['MAX TEMPERATURE'])
+# yesterday_weather
 
 # %% [markdown]
 # # Read in Cora Data, Process
@@ -114,7 +114,7 @@ obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
 # Read the file's contents into a Pandas DataFrame
 print("Reading in file from S3 bucket")
 df = pd.read_csv(obj['Body'])
-print(df.head(5))
+# print(df.head(5))
 df['date_clean'] = df['date'].str[:10]
 df["date_clean"] = pd.to_datetime(df["date_clean"])
 data = df.copy().sort_values(by="date", ascending=False)
@@ -167,8 +167,8 @@ obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
 weather_df = pd.read_csv(obj['Body'])
 
 
-print(weather_df['DATE'].min())
-print(weather_df['DATE'].max())
+# print(weather_df['DATE'].min())
+# print(weather_df['DATE'].max())
 
 # %% [markdown]
 # ## Some Stations have more missing data than others
@@ -238,7 +238,7 @@ weather_df_clean.head(1)
 missing_value_counts = weather_df_clean.isnull().sum()
 
 # Print the number of missing values in each column
-print(missing_value_counts[missing_value_counts > 0])
+# print(missing_value_counts[missing_value_counts > 0])
 
 # %%
 weather_df_clean = weather_df_clean[weather_df_clean['DATE'] < '2023-03-17']
@@ -299,10 +299,10 @@ model_df['target'] = pd.Categorical(model_df['target'])
 
 # %%
 
-print(os.getcwd())
+# print(os.getcwd())
 
 # %%
-print(os.path.exists('openweatheronecall.key'))  # returns True if file exists
+# print(os.path.exists('openweatheronecall.key'))  # returns True if file exists
 
 # %%
 
@@ -341,7 +341,7 @@ if os.path.exists(pickle_file) and datetime.fromtimestamp(os.path.getmtime(pickl
     print("Already have today's future data. Loading from pickle file.")
 else:
     response = requests.get(url).json()
-    print(response)
+    # print(response)
     forecast = response['daily']
     data = []
     for day in forecast:
@@ -360,14 +360,18 @@ else:
 
 future_weather = weather_data.copy()
 future_weather['TOTAL PRECIPITATION RAW'] = future_weather['TOTAL PRECIPITATION'].copy()
-future_weather['TOTAL PRECIPITATION'] = future_weather['TOTAL PRECIPITATION'] * future_weather['PRECIPITATION PROBABILITY']
+
+future_weather['ADJUSTED PRECIPITATION PROBABILITY'] = (future_weather['PRECIPITATION PROBABILITY'] * 1.5).clip(upper=1)
+future_weather['TOTAL PRECIPITATION'] = future_weather['TOTAL PRECIPITATION'] * future_weather['ADJUSTED PRECIPITATION PROBABILITY']
+
+# future_weather['TOTAL PRECIPITATION'] = future_weather['TOTAL PRECIPITATION'] * future_weather['PRECIPITATION PROBABILITY']
 future_weather = future_weather[['DATE', 'MAX TEMPERATURE', 'AVG WIND', 'TOTAL PRECIPITATION']]
 future_weather
 
 # %%
 raw_weather_data = weather_data.copy()
 print("raw weather data")
-print(raw_weather_data.head(5))
+print(raw_weather_data.head(1))
 
 import imgkit
 
@@ -480,18 +484,20 @@ column_names = {'date_clean': 'DATE', 'TMAX': 'MAX TEMPERATURE', 'AWND': 'AVG WI
 weather_df_deploy = weather_df_deploy.rename(columns=column_names)
 weather_df_deploy.head(1)
 
-weather_append = pd.concat([historical_one_week, yesterday_weather, future_weather, weather_df_deploy])
+weather_append = pd.concat([historical_one_week, 
+# yesterday_weather, 
+                            future_weather, weather_df_deploy])
 weather_append = weather_append.drop_duplicates(subset=['DATE'], keep='first')
 weather_append['DATE'] = pd.to_datetime(weather_append['DATE'])
 weather_append['DATE'] = weather_append['DATE'].dt.date
-print(weather_append.head(10))
+# print(weather_append.head(10))
 
 
 
 # # Visualize Recent Weather Data and Future Forecast
 weather_sorted = weather_append.sort_values(by='DATE', ascending=False).head(10)
 weather_sorted.set_index('DATE', inplace=True)
-print(weather_sorted.head(5))
+print(weather_sorted.head(15))
 # %%
 # Plot TOTAL PRECIPITATION
 plt.figure(figsize=(15, 3))
@@ -570,9 +576,13 @@ model_df['date_clean'] = model_df['date_clean'].dt.date
 # weather_data_main = pd.concat([model_df, new_df], axis=0)
 weather_data_main = new_df.copy()
 weather_data_main = weather_data_main.drop_duplicates(subset=['date_clean', 'trail'])
+print("model_df date min")
 print(model_df['date_clean'].min())
+print("model_df date max")
 print(model_df['date_clean'].max())
+print("predict_df date min")
 print(new_df['date_clean'].min())
+print("predict_df date max")
 print(new_df['date_clean'].max())
 
 # ## QA NOTE: Stopping At March 16th, 2023 because that's when CORA history ends
@@ -582,11 +592,11 @@ weather_data_main.sort_values('date_clean', ascending = False).head(15)['date_cl
 # %% [markdown]
 # ### Check to see if we have necessary dates 
 
-# %%
-if weather_data_main['date_clean'].max() < new_df['date_clean'].min():
-    print("WARNING missing weather data")
-else:
-    print("GOOD we have the proper data needed")
+# # %%
+# if weather_data_main['date_clean'].max() < new_df['date_clean'].min():
+#     print("WARNING missing weather data")
+# else:
+#     print("GOOD we have the proper data needed")
 
 # # Feature Engineering # Define Lookbacks (# of days for each feature)
 for i in lookback_days_list:
@@ -619,6 +629,6 @@ model_df['target'] = model_df['target'].astype('int64')
 model_df.to_csv('data/01_mtb_model_df_out.csv')
 weather_data_main_future.to_csv('data/01_mtb_weather_data_main_future_out.csv')
 
-print("Script Complete")
+print("01 Script Complete")
 
 

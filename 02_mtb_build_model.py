@@ -25,6 +25,10 @@ from sklearn.decomposition import PCA
 from sklearn.model_selection import StratifiedKFold
 import joblib
 
+import boto3
+bucket_name = 'mtb-trail-condition-predictions'  # Change this to your bucket name
+s3 = boto3.client('s3')
+
 
 warnings.filterwarnings('ignore')
 
@@ -66,14 +70,14 @@ model_evaluations = []
 print("modeling started, will take a while")
 # New Param Grid 7/21
 param_dist = {
-    'n_estimators': range(50, 200, 50),
-    'max_depth': range(2, 6),
-    'min_child_weight': range(7, 35),
-    'gamma': [i/10.0 for i in range(0, 10)],
-    'subsample': [i/10.0 for i in range(3, 9)],
-    'colsample_bytree': [i/10.0 for i in range(7, 11)],
+    'n_estimators': range(50, 150, 50),
+    'max_depth': range(3, 5),
+    'min_child_weight': range(12, 30),
+    # 'gamma': [i/10.0 for i in range(0, 10)],
+    # 'subsample': [i/10.0 for i in range(3, 9)],
+    # 'colsample_bytree': [i/10.0 for i in range(7, 11)],
     'learning_rate': [0.01, 0.05, 0.1],
-    'reg_lambda': [0, 1, 2, 3],
+    'reg_lambda': [1, 2, 3],
     'reg_alpha': [0, 1, 2, 3]
 }
 
@@ -98,10 +102,9 @@ for trail in unique_trails:
     # Create the RandomizedSearchCV object
     random_search = RandomizedSearchCV(estimator=xgb,
                                        param_distributions=param_dist,
-                                       n_iter=250, #  Number of parameter settings that are sampled
+                                       n_iter=250,
                                     #    n_iter=3,   
-                                       scoring='roc_auc',  # You can change this to the metric you want to optimize
-                                    #    cv=5,  # Cross-validation splitting strategy
+                                       scoring='roc_auc',
                                        cv=skf,
                                        verbose=0, 
                                        random_state=42)
@@ -134,24 +137,42 @@ for trail in unique_trails:
     all_feature_importances.append(feature_importances)
 
     # Use SHAP to explain the model's predictions
-    plt.figure(figsize=(8, 3.5))
-    
+    plt.figure(figsize=(10, 5))
+
     explainer = shap.TreeExplainer(best_model)
     shap_values = explainer.shap_values(trail_X_train)
-    fig, ax = plt.subplots(figsize=(8, 3))
+    fig, ax = plt.subplots(figsize=(10, 5))
     ax.set_title(f"Shapley Values for {trail} Trails")
-    shap.summary_plot(shap_values, trail_X_train, plot_size=None, show=False)
+    shap.summary_plot(shap_values, trail_X_train, show=False)
+
+    # Tweak layout parameters to make room for your custom colorbar
+    plt.subplots_adjust(right=0.8)
+
+    # Add your custom colorbar with adjusted label size
+    cax = fig.add_axes([0.85, 0.15, 0.05, 0.7]) # Position of the colorbar
+    colorbar = plt.colorbar(cax=cax, label='Feature Value: Defaults to #1 Important Feature')
+    colorbar.ax.tick_params(labelsize=5)  # Adjust label size here
+    colorbar.set_label('Feature Value', fontsize=8)  # Adjust label font size
+
     plt.tick_params(axis='y', which='major', labelsize=8)  # Set y-tick label size
-    plt.tight_layout()
-    plt.show(block=False)
+
+    filename = 'model_eval/model_' + str(trail) + '.png'
+    fig.savefig(filename, dpi=300, bbox_inches='tight')
+    s3.upload_file(filename, bucket_name, filename, ExtraArgs={'ACL': 'public-read'})
 
     shap_values_df = pd.DataFrame(shap_values, columns=trail_X_train.columns)
     shap_values_all.append(shap_values_df)
+
+
 
 # Create final dataframes
 feature_importances_df = pd.concat(all_feature_importances, axis=0, ignore_index=True)
 shap_values_df_all = pd.concat(shap_values_all, axis=0, ignore_index=True)
 model_evaluations_df = pd.DataFrame(model_evaluations)
+
+feature_importances_df.to_csv("data/feature_importances.csv")
+shap_values_df_all.to_csv("data/feature_importances.csv")
+model_evaluations_df.to_csv("data/feature_importances.csv")
 
 # Initialize a list to store test set evaluations
 test_evaluations = []
@@ -190,5 +211,4 @@ print(model_evaluations_df.merge(test_evaluations_df, how = 'inner', on = 'trail
 # Save the dictionary of models
 joblib.dump(trail_models, 'data/02_trail_models.joblib')
 
-print("saved models")
-
+print("02 Script Complete")
