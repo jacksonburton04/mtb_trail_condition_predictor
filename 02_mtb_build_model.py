@@ -23,6 +23,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.decomposition import PCA
 from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import log_loss
 import joblib
 
 import boto3
@@ -65,20 +66,21 @@ trail_models = {}
 # Initialize lists to store data for final dataframes
 all_feature_importances = []
 shap_values_all = []
-model_evaluations = []
+# model_evaluations = []
+log_loss_evals = []  
 
 print("modeling started, will take a while")
 # New Param Grid 7/21
 param_dist = {
-    'n_estimators': range(50, 150, 50),
-    'max_depth': range(3, 5),
-    'min_child_weight': range(12, 30),
+    'n_estimators': range(50, 200, 50),
+    'max_depth': range(2, 5),
+    'min_child_weight': range(10, 30),
     # 'gamma': [i/10.0 for i in range(0, 10)],
     # 'subsample': [i/10.0 for i in range(3, 9)],
     # 'colsample_bytree': [i/10.0 for i in range(7, 11)],
-    'learning_rate': [0.01, 0.05, 0.1],
+    'learning_rate': [0.01, 0.03, 0.05],
     'reg_lambda': [1, 2, 3],
-    'reg_alpha': [0, 1, 2, 3]
+    'reg_alpha': [1, 2, 3]
 }
 
 
@@ -93,41 +95,35 @@ for trail in unique_trails:
     trail_X_val = features_val.loc[trail_mask_val, :].drop(columns=['trail'])
     trail_y_val = target_val.loc[trail_mask_val]
 
-    # Create a XGBClassifier object
-    xgb = XGBClassifier(use_label_encoder=False, eval_metric="logloss", random_state=42)
+    # Calculate the scale_pos_weight value for your dataset
+    class_counts = target_train.value_counts()
+    scale_pos_weight = class_counts[0] / class_counts[1]
 
-    # Create a StratifiedKFold object
+    xgb = XGBClassifier(use_label_encoder=False, eval_metric="logloss", random_state=42, scale_pos_weight=scale_pos_weight)
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-    # Create the RandomizedSearchCV object
+    # RandomizedSearchCV
     random_search = RandomizedSearchCV(estimator=xgb,
                                        param_distributions=param_dist,
-                                       n_iter=250,
-                                    #    n_iter=3,   
-                                       scoring='roc_auc',
+                                       n_iter=777,
+                                       scoring='neg_log_loss',
                                        cv=skf,
                                        verbose=0, 
                                        random_state=42)
 
     # Perform the randomized search
     random_search.fit(trail_X_train, trail_y_train)
-
-    # Get the best model
     best_model = random_search.best_estimator_
-
-    # Save the model
     trail_models[trail] = best_model
 
     # Get predictions for the validation set
     predictions_val = best_model.predict_proba(trail_X_val)[:, 1]
 
-    # Calculate the ROC AUC of the predictions
-    roc_auc_val = roc_auc_score(trail_y_val, predictions_val)
-    
-    # Save the ROC AUC score and the trail in the model evaluations
-    model_evaluations.append({
+    # Calculate Log Loss on the validation set
+    log_loss_val = log_loss(trail_y_val, predictions_val)
+    log_loss_evals.append({
         'trail': trail,
-        'roc_auc_val': roc_auc_val,
+        'log_loss_val': log_loss_val
     })
 
     # Get feature importances
@@ -168,11 +164,54 @@ for trail in unique_trails:
 # Create final dataframes
 feature_importances_df = pd.concat(all_feature_importances, axis=0, ignore_index=True)
 shap_values_df_all = pd.concat(shap_values_all, axis=0, ignore_index=True)
-model_evaluations_df = pd.DataFrame(model_evaluations)
+log_loss_evals_df = pd.DataFrame(log_loss_evals) 
 
 feature_importances_df.to_csv("data/feature_importances.csv")
-shap_values_df_all.to_csv("data/feature_importances.csv")
-model_evaluations_df.to_csv("data/feature_importances.csv")
+shap_values_df_all.to_csv("data/shap_values_df_all.csv")
+log_loss_evals_df.to_csv("data/log_loss_evals_df.csv")
+
+### VISUALIZE MODEL PERFORMANCE
+
+log_loss_evals_df['log_loss_val'] = log_loss_evals_df['log_loss_val'].round(2)
+
+def classify_performance(log_loss_val):
+    if log_loss_val <= 0.3:
+        return 'Great'
+    elif log_loss_val <= 0.4:
+        return 'Good'
+    elif log_loss_val <= 0.5:
+        return 'Average'
+    elif log_loss_val <= 0.6:
+        return 'Below Average'
+    else:
+        return 'Poor'
+
+log_loss_evals_df['Classification'] = log_loss_evals_df['log_loss_val'].apply(classify_performance)
+
+plt.clf() # Clear the figure to make sure the old plots are not affecting new ones
+
+# Visualize Performance
+color_map = {'Great': 'g', 'Good': 'lightgreen', 'Average': 'grey', 'Below Average': 'orange', 'Poor': 'r'}
+log_loss_evals_df.sort_values('log_loss_val', inplace=True)
+colors = [color_map[classification] for classification in log_loss_evals_df['Classification']]
+
+plt.bar(log_loss_evals_df['trail'], log_loss_evals_df['log_loss_val'], color=colors)
+plt.xlabel('Trail')
+plt.ylabel('Log Loss Value')
+plt.title('Model Performance by Trail')
+plt.xticks(rotation=90)
+
+# Legend
+labels = list(color_map.keys())
+handles = [plt.Rectangle((0,0),1,1, color=color_map[label]) for label in labels]
+plt.legend(handles, labels, title='Performance Classification: Log Loss')
+
+# Save the figure
+filename = 'model_eval/log_loss_chart.png'
+plt.savefig(filename, dpi=300, bbox_inches='tight')
+
+# Upload to S3
+s3.upload_file(filename, bucket_name, filename, ExtraArgs={'ACL': 'public-read'})
 
 # Initialize a list to store test set evaluations
 test_evaluations = []
@@ -205,7 +244,7 @@ test_evaluations_df = pd.DataFrame(test_evaluations)
 
 
 # %%
-print(model_evaluations_df.merge(test_evaluations_df, how = 'inner', on = 'trail').sort_values('roc_auc_val', ascending=False))
+print(log_loss_evals_df.merge(test_evaluations_df, how = 'inner', on = 'trail').sort_values('log_loss_val', ascending=False))
 
 
 # Save the dictionary of models
