@@ -46,6 +46,11 @@ def classify_confidence_level(confidence):
     else:
         return 'ERROR'
 
+# trained_features_order = ['PRCP', 'PRCP_2d', 'PRCP_3d', 'PRCP_5d', 
+# 'PC1_1d', 
+# # 'PC2_1d', 
+# 'PC1_2d']
+
 trained_features_order = ['AWND', 'PRCP', 'TMAX', 
 'PRCP_2d', 'TMAX_2d', 
 'PRCP_3d', 'TMAX_3d', 

@@ -1,11 +1,3 @@
-# data_yesterday = {
-#     'DATE': ['2023-08-23'],
-#     'MAX TEMPERATURE': ['92'],
-#     'AVG WIND': [7],
-#     'TOTAL PRECIPITATION': [0.00]
-# }
-
-# %%
 import pickle
 import os
 from datetime import datetime, timedelta
@@ -624,11 +616,65 @@ datetime_cols = model_df.select_dtypes(include=[np.datetime64, 'datetime', 'date
 model_df['date_clean'] = model_df['date_clean'].astype('datetime64[ns]')
 model_df['target'] = model_df['target'].astype('int64')
 
+## Manually override "bad" trail status conditions
+# Our training data is not perfect, often times a trail steward could be a day or so late to update the facebook page
+# let's override trails to be CLOSED when there is at least 0.5 inches of rain
 
-# # Write Out Data
+prcp_override = 0.4
+prcp_override_2_days = 1.0
+prcp_override_3_days = 2.0
+
+
+# Update 'target' based on condition
+model_df['target'] = np.where(model_df['PRCP'] >= prcp_override, 0, model_df['target'])
+model_df['target'] = np.where(model_df['PRCP_2d'] >= prcp_override_2_days, 0, model_df['target'])
+model_df['target'] = np.where(model_df['PRCP_3d'] >= prcp_override_3_days, 0, model_df['target'])
+
+
+### Try PCA on PRCP + AWND, PRCP + TEMPERATURE
+
+# from sklearn.decomposition import PCA
+# from sklearn.preprocessing import StandardScaler
+
+# def add_principal_components(df):
+#     # Function to perform PCA on given columns and return principal components
+#     def perform_pca(columns, n_components=1):
+#         scaler = StandardScaler()
+#         scaled_data = scaler.fit_transform(df[columns])
+#         pca = PCA(n_components=n_components)
+#         principal_components = pca.fit_transform(scaled_data)
+        
+#         # Print explained variance ratios
+#         print(f"Explained variance ratios for {columns}: {pca.explained_variance_ratio_}")
+        
+#         return principal_components
+
+#     # Perform PCA on the first set of columns
+#     principal_components_1 = perform_pca(['AWND', 'TMAX', 'PRCP'])
+#     principal_df_1 = pd.DataFrame(data=principal_components_1, columns=['PC1_1d'])
+    
+#     # Perform PCA on the second set of columns
+#     principal_components_2 = perform_pca(['TMAX_2d', 'PRCP_2d'])
+#     principal_df_2 = pd.DataFrame(data=principal_components_2, columns=['PC1_2d'])
+    
+#     # Concatenate original DataFrame and principal components
+#     final_df = pd.concat([df.reset_index(drop=True), principal_df_1.reset_index(drop=True), principal_df_2.reset_index(drop=True)], axis=1)
+#     keep_columns = [col for col in ['date_clean', 'trail', 'target', 'PRCP', 'PRCP_2d', 'PRCP_3d', 'PRCP_5d', 'PC1_1d', 'PC1_2d'] if col in df.columns]
+#     final_df = final_df[keep_columns]
+# # date_clean,trail,AWND,PRCP,TMAX,PRCP_2d,TMAX_2d,PRCP_3d,TMAX_3d,PRCP_5d,TMAX_5d,target,PC1,PC2,PC3
+
+#     return final_df
+
+# # Apply function
+# model_df_with_pca = add_principal_components(model_df)
+# weather_data_main_future_with_pca = add_principal_components(weather_data_main_future)
+
+####### Write Out Data
 model_df.to_csv('data/01_mtb_model_df_out.csv')
 weather_data_main_future.to_csv('data/01_mtb_weather_data_main_future_out.csv')
 
+# model_df_with_pca.to_csv('data/01_mtb_model_df_out.csv')
+# weather_data_main_future_with_pca.to_csv('data/01_mtb_weather_data_main_future_out.csv')
+
 print("01 Script Complete")
-
-
+############################

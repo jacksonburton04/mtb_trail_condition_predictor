@@ -10,3 +10,87 @@ INFO:root:Successfully ran 02_mtb_build_model.py
 INFO:root:Successfully ran 03_make_preds.py
 INFO:root:Successfully ran 04_visualize.py
 INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 02_mtb_build_model.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 02_mtb_build_model.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 02_mtb_build_model.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
+INFO:root:Script started
+INFO:root:Successfully ran 01_mtb_prep_data.py
+INFO:root:Successfully ran 02_mtb_build_model.py
+INFO:root:Successfully ran 03_make_preds.py
+INFO:root:Successfully ran 04_visualize.py
+INFO:root:Script ended
