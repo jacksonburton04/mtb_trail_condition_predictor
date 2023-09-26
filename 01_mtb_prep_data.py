@@ -254,20 +254,19 @@ weather_trim.head(1)
 
 # %%
 model_df = trail_df.merge(weather_trim, on = 'date_clean', how = 'inner')
-
 model_df['PRCP'] = model_df['PRCP'] + model_df['SNOW']
-
 model_df = model_df.drop(columns=['TMIN', 'TAVG', 'SNOW'])
 
 # Create new columns 
+model_df = model_df.sort_values(['trail', 'date_clean']) # this sort is crucial to the logic below
 for i in lookback_days_list:
     for col in ['PRCP', 'TMAX']:
         if col == 'PRCP':
-            # Calculate the cumulative sum of 'PRCP' for the past X days
-            model_df[f'{col}_{i}d'] = model_df[col].rolling(window=i).sum().shift(1)
+            # Calculate the cumulative sum of 'PRCP' for the past X days including today
+            model_df[f'{col}_{i}d'] = model_df[col].rolling(window=i, min_periods=1).sum()
         else:
-            # Calculate the average of 'AWND' and 'TAVG' for the past X days
-            model_df[f'{col}_{i}d'] = model_df[col].rolling(window=i).mean().shift(1)
+            # Calculate the average of 'AWND' and 'TAVG' for the past X days including today
+            model_df[f'{col}_{i}d'] = model_df[col].rolling(window=i, min_periods=1).mean()
 
 # Replace missing values with 0
 model_df.fillna(0, inplace=True)
@@ -286,19 +285,6 @@ model_df.drop(columns=['status'], inplace=True)
 # Encode target variable as categorical
 model_df['target'] = pd.Categorical(model_df['target'])
 
-# %% [markdown]
-# # Load Open Weather API Key (Encrypted)
-
-# %%
-
-# print(os.getcwd())
-
-# %%
-# print(os.path.exists('openweatheronecall.key'))  # returns True if file exists
-
-# %%
-
-
 def load_key():
     return open("/Users/jacksonburton/Documents/tech_projects/key.key", "rb").read()
 
@@ -315,111 +301,61 @@ api_key = decrypted_api_key
 # %% [markdown]
 # # METHODOLOGY: % Probability X Rain Inches
 # - Since future weather data is uncertain, lets try taking the probability of rain TIMES the inches expected
-
-# %%
-lat = "39.1015"  # Replace with latitude of Cincinnati, OH
-lon = "-84.5125"  # Replace with longitude of Cincinnati, OH
+# READ in Long/Lat of trails
+df_trail_locations = pd.read_csv("data/trail_locations.csv")
 exclude = "minutely,hourly,alerts"
 days=7
-location = 'Cincinnati, OH'
-
-# Load future weather data
 pickle_file = 'data/weather_data.pickle'
-url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&exclude={exclude}&appid={api_key}&units=imperial"
 
+# Check if pickle file exists and is from today
 if os.path.exists(pickle_file) and datetime.fromtimestamp(os.path.getmtime(pickle_file)).date() == datetime.now().date():
     with open(pickle_file, 'rb') as f:
-        weather_data = pickle.load(f)
+        future_weather_all_trails = pickle.load(f)
     print("Already have today's future data. Loading from pickle file.")
 else:
-    response = requests.get(url).json()
-    # print(response)
-    forecast = response['daily']
-    data = []
-    for day in forecast:
-        date = datetime.fromtimestamp(day['dt']).strftime('%Y-%m-%d')  # Converting Unix timestamp to readable date
-        max_temp_f = day['temp']['max']  # Fetching maximum temperature in Fahrenheit
-        avg_wind = day['wind_speed']
-        total_precip_mm = day['rain'] if 'rain' in day else 0  # Some days may not have 'rain' key if there's no rain
-        total_precip_in = total_precip_mm / 25.4  # Convert from mm to inches
-        precip_prob = day['pop']  # Fetching precipitation probability
-        data.append([date, max_temp_f, avg_wind, total_precip_in, precip_prob])
+    # Initialize an empty DataFrame to store all future weather data
+    future_weather_all_trails = pd.DataFrame()
 
-    weather_data = pd.DataFrame(data, columns=['DATE', 'MAX TEMPERATURE', 'AVG WIND', 'TOTAL PRECIPITATION', 'PRECIPITATION PROBABILITY'])
+    # Loop through each trail in df_trail_locations
+    for index, row in df_trail_locations.iterrows():
+        lat = row['Latitude']
+        lon = row['Longitude']
+        trail = row['Trail']
+        
+        url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&exclude={exclude}&appid={api_key}&units=imperial"
+        response = requests.get(url).json()
+        forecast = response['daily']
+        data = []
+        
+        for day in forecast:
+            date = datetime.fromtimestamp(day['dt']).strftime('%Y-%m-%d')
+            max_temp_f = day['temp']['max']
+            avg_wind = day['wind_speed']
+            total_precip_mm = day['rain'] if 'rain' in day else 0
+            total_precip_in = total_precip_mm / 25.4
+            precip_prob = day['pop']
+            data.append([trail, date, max_temp_f, avg_wind, total_precip_in, precip_prob])
+
+        weather_data = pd.DataFrame(data, columns=['Trail', 'DATE', 'MAX TEMPERATURE', 'AVG WIND', 'TOTAL PRECIPITATION', 'PRECIPITATION PROBABILITY'])
+        future_weather_all_trails = pd.concat([future_weather_all_trails, weather_data])
+
+    # Save to pickle
     with open(pickle_file, 'wb') as f:
-        pickle.dump(weather_data, f)
+        pickle.dump(future_weather_all_trails, f)
     print("Did not have today's future data, loading API data and saving to pickle file.")
 
-future_weather = weather_data.copy()
-future_weather['TOTAL PRECIPITATION RAW'] = future_weather['TOTAL PRECIPITATION'].copy()
+# Your existing code for modifying weather data
+future_weather_all_trails['TOTAL PRECIPITATION RAW'] = future_weather_all_trails['TOTAL PRECIPITATION'].copy()
+future_weather_all_trails['ADJUSTED PRECIPITATION PROBABILITY'] = (future_weather_all_trails['PRECIPITATION PROBABILITY'] * 1.00).clip(upper=1)
+# future_weather_all_trails['ADJUSTED PRECIPITATION PROBABILITY'] = future_weather_all_trails['PRECIPITATION PROBABILITY'].apply(lambda x: x ** 2) ## Power Transform, keeps higher values high but minimizes lower values
+future_weather_all_trails['TOTAL PRECIPITATION'] = future_weather_all_trails['TOTAL PRECIPITATION'] * future_weather_all_trails['ADJUSTED PRECIPITATION PROBABILITY']
+future_weather_all_trails.loc[future_weather_all_trails['TOTAL PRECIPITATION'] < 0.01, 'TOTAL PRECIPITATION'] = 0
 
-future_weather['ADJUSTED PRECIPITATION PROBABILITY'] = (future_weather['PRECIPITATION PROBABILITY'] * 1.5).clip(upper=1)
-future_weather['TOTAL PRECIPITATION'] = future_weather['TOTAL PRECIPITATION'] * future_weather['ADJUSTED PRECIPITATION PROBABILITY']
+print("FUTURE WEATHER ALL TRAILS ---------------")
+print(future_weather_all_trails.head(30))
 
-# future_weather['TOTAL PRECIPITATION'] = future_weather['TOTAL PRECIPITATION'] * future_weather['PRECIPITATION PROBABILITY']
-future_weather = future_weather[['DATE', 'MAX TEMPERATURE', 'AVG WIND', 'TOTAL PRECIPITATION']]
-future_weather
-
-# %%
-raw_weather_data = weather_data.copy()
-print("raw weather data")
-print(raw_weather_data.head(1))
-
-import imgkit
-
-def highlight_cells(val, column):
-    if column == 'TOTAL PRECIPITATION' and val > 1:
-        return 'background-color: red'
-    elif column == 'TOTAL PRECIPITATION' and val > 0.25:
-        return 'background-color: orange'
-    elif column == 'TOTAL PRECIPITATION' and val > 0:
-        return 'background-color: yellow'
-    elif column == 'PRECIPITATION PROBABILITY' and val > .85:
-        return 'background-color: red'
-    elif column == 'PRECIPITATION PROBABILITY' and val > 0.25:
-        return 'background-color: orange'
-    elif column == 'PRECIPITATION PROBABILITY' and val > 0:
-        return 'background-color: yellow'
-    else:
-        return ''
-
-styled_weather_data = raw_weather_data.style.apply(lambda x: [highlight_cells(v, c) for v, c in zip(x, x.index)], axis=1)
-
-styled_weather_data.format({
-    'MAX TEMPERATURE': "{:.0f}",
-    'AVG WIND': "{:.0f}",
-    'TOTAL PRECIPITATION': "{:.2f}",
-    'PRECIPITATION PROBABILITY': "{:.2f}"
-})
-
-table_styles = [
-    {"selector": "td", "props": [("text-align", "center")]},
-    {"selector": "th", "props": [("text-align", "center")]}
-]
-
-# Apply the styles
-styled_weather_data.set_table_styles(table_styles)
-
-# Rendering the HTML and saving as an image
-html = styled_weather_data.render()
-html_file = "data/weather_preds.html"
-with open(html_file, "w") as f:
-    f.write(html)
-
-image_file = "data/weather_preds.png"
-imgkit.from_file(html_file, image_file)
-
-# S3 upload code
-filename_local = 'data/weather_preds.png'
-filename_s3 = 'weather_preds.png'
-bucket_name = 'mtb-trail-condition-predictions'
-s3 = boto3.client('s3')
-s3.upload_file(filename_local, bucket_name, filename_s3, ExtraArgs={'ACL': 'public-read'})
-print("Done! Check your S3 bucket for the image.")
-
-# # Get Historical Weather Data One Week
-# - Outstanding issue: for some reason, I cannot pull yesterdays weather as of 9AM EST
-# - Maybe if I wait until later in the day to try and run this, this issue might resolve? Not sure
+# Final DataFrame
+future_weather = future_weather_all_trails[['Trail', 'DATE', 'MAX TEMPERATURE', 'AVG WIND', 'TOTAL PRECIPITATION']]
 
 # %%
 def get_weather_data(lat, lon, date, api_key):
@@ -434,152 +370,127 @@ def get_weather_data(lat, lon, date, api_key):
     response = requests.get(base_url, params=params)
     return response.json()
 
-# Cincinnati, Ohio coordinates
-lat = 39.1031
-lon = -84.5120
 
-pickle_file = 'data/historical_one_week.pickle'
+pickle_file = 'data/historical_one_week_all_trails.pickle'
+
 if os.path.exists(pickle_file) and datetime.fromtimestamp(os.path.getmtime(pickle_file)).date() == datetime.now().date():
     with open(pickle_file, 'rb') as f:
-        historical_one_week = pickle.load(f)
-    print("Already have today's data. Loading from pickle file.")
+        historical_one_week_all_trails = pickle.load(f)
+    print("Already have today's historical data. Loading from pickle file.")
 else:
-    # Initialize dataframe
-    historical_one_week = pd.DataFrame(columns=['DATE', 'MAX TEMPERATURE', 'AVG WIND', 'TOTAL PRECIPITATION'])
+    # Initialize an empty DataFrame
+    historical_one_week_all_trails = pd.DataFrame()
 
-    # Loop through last 7 days
-    for i in range(1, 8):  # Start from 1, not 0
-        date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
-        data = get_weather_data(lat, lon, date, api_key)
+    # Loop through each trail in df_trail_locations
+    for index, row in df_trail_locations.iterrows():
+        lat = row['Latitude']
+        lon = row['Longitude']
+        trail = row['Trail']
+        data = []
         
-        # Print out the keys in the data dictionary
-        # print(f"Keys in data dictionary for {date}: {data.keys()}")
-        
-        try:
-            # Fetching maximum temperature
-            temp_max = data['temperature']['max']
-            wind_speed = data['wind']['max']['speed']
-            # Convert precipitation from mm to inches # Confirmed on 7/21 that NOAA is inches and this API is mm
-            precipitation = data['precipitation']['total'] * 0.0393701
-            historical_one_week.loc[i-1] = [date, temp_max, wind_speed, precipitation]  # i-1 to make index start from 0
-        except KeyError:
-            print(f"Error for {date}: {data.get('message', 'Unknown error')}")
+        # Loop through last 7 days
+        for i in range(1, 8):
+            date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+            response = get_weather_data(lat, lon, date, api_key)
 
+            try:
+                temp_max = response['temperature']['max']
+                wind_speed = response['wind']['max']['speed']
+                precipitation = response['precipitation']['total'] * 0.0393701
+                
+                data.append([trail, date, temp_max, wind_speed, precipitation])
+            except KeyError:
+                print(f"Error for {date}: {response.get('message', 'Unknown error')}")
+
+        historical_data = pd.DataFrame(data, columns=['Trail', 'DATE', 'MAX TEMPERATURE', 'AVG WIND', 'TOTAL PRECIPITATION'])
+        historical_one_week_all_trails = pd.concat([historical_one_week_all_trails, historical_data])
+
+    # Save to pickle
     with open(pickle_file, 'wb') as f:
-        pickle.dump(historical_one_week, f)
-    print("Did not have today's data, pulling API data and saving to pickle file.")
+        pickle.dump(historical_one_week_all_trails, f)
+    print("Did not have today's historical data, pulling API data and saving to pickle file.")
 
 
-weather_df_deploy = weather_trim[['date_clean', 'TMAX', 'AWND', 'PRCP']]
+# weather_df_deploy = weather_trim[['date_clean', 'TMAX', 'AWND', 'PRCP']]
 
-column_names = {'date_clean': 'DATE', 'TMAX': 'MAX TEMPERATURE', 'AWND': 'AVG WIND','PRCP' : 'TOTAL PRECIPITATION'}
-weather_df_deploy = weather_df_deploy.rename(columns=column_names)
-weather_df_deploy.head(1)
+# column_names = {'date_clean': 'DATE', 'TMAX': 'MAX TEMPERATURE', 'AWND': 'AVG WIND','PRCP' : 'TOTAL PRECIPITATION'}
+# weather_df_deploy = weather_df_deploy.rename(columns=column_names)
+# weather_df_deploy.head(1)
 
-weather_append = pd.concat([historical_one_week, 
-# yesterday_weather, 
-                            future_weather, weather_df_deploy])
-weather_append = weather_append.drop_duplicates(subset=['DATE'], keep='first')
+print("hist one week all trails")
+print(historical_one_week_all_trails.head(5))
+print(historical_one_week_all_trails.columns)
+
+print("future weather")
+print(future_weather.head(5))
+print(future_weather.columns)
+
+
+weather_append = pd.concat([historical_one_week_all_trails,
+    # historical_one_week, 
+# yesterday_weather, weather_df_deploy
+                            future_weather])
+weather_append = weather_append.drop_duplicates(subset=['DATE', 'Trail'], keep='first')
 weather_append['DATE'] = pd.to_datetime(weather_append['DATE'])
 weather_append['DATE'] = weather_append['DATE'].dt.date
-# print(weather_append.head(10))
+print("PRINTING NEW WEATHER DATA #######")
+print(weather_append.head(25))
 
 
 
 # # Visualize Recent Weather Data and Future Forecast
-weather_sorted = weather_append.sort_values(by='DATE', ascending=False).head(10)
+weather_sorted = weather_append.sort_values(by='DATE', ascending=False)
 weather_sorted.set_index('DATE', inplace=True)
 print(weather_sorted.head(15))
 # %%
-# Plot TOTAL PRECIPITATION
-plt.figure(figsize=(15, 3))
-plt.bar(weather_sorted.index, weather_sorted['TOTAL PRECIPITATION'], color='skyblue')
-plt.xticks(rotation=45)
-plt.title('TOTAL PRECIPITATION over Time')
-plt.xlabel('DATE')
-plt.ylabel('TOTAL PRECIPITATION')
-plt.grid(True)
-plt.show(block=False)
-
-
-# weather_sorted['MAX TEMPERATURE'] = pd.to_numeric(weather_sorted['MAX TEMPERATURE'], errors='coerce')
-
-# plt.figure(figsize=(14, 4))
-# plt.plot(weather_sorted['MAX TEMPERATURE'], linewidth=4)
-
-# # Find min and max values
-# min_temp = weather_sorted['MAX TEMPERATURE'].min()
-# max_temp = weather_sorted['MAX TEMPERATURE'].max()
-
-# # Find the dates corresponding to the min and max temperatures
-# min_date = weather_sorted[weather_sorted['MAX TEMPERATURE'] == min_temp].index[0]
-# max_date = weather_sorted[weather_sorted['MAX TEMPERATURE'] == max_temp].index[0]
-
-# # Annotate the min and max points on the graph
-# plt.annotate(f'Min: {min_temp}', xy=(min_date, min_temp), xytext=(min_date, min_temp+5),
-#              arrowprops=dict(facecolor='red', shrink=0.05))
-# plt.annotate(f'Max: {max_temp}', xy=(max_date, max_temp), xytext=(max_date, max_temp+5),
-#              arrowprops=dict(facecolor='green', shrink=0.05))
-
+# # Plot TOTAL PRECIPITATION
+# plt.figure(figsize=(15, 3))
+# plt.bar(weather_sorted.index, weather_sorted['TOTAL PRECIPITATION'], color='skyblue')
 # plt.xticks(rotation=45)
-# plt.title('MAX TEMPERATURE over Time')
+# plt.title('TOTAL PRECIPITATION over Time')
 # plt.xlabel('DATE')
-# plt.ylabel('MAX TEMPERATURE')
-# plt.grid(False)
+# plt.ylabel('TOTAL PRECIPITATION')
+# plt.grid(True)
 # plt.show(block=False)
 
 
-# %%
-unique_trails = trail_df['trail'].unique().tolist()
-
-# create an empty list to store the duplicated rows
-new_rows = []
-
-# loop through each row in the original DataFrame
-for _, row in weather_append.iterrows():
-    # loop through each unique string and create a new row with the string added
-    for string in unique_trails:
-        new_row = row.copy()
-        new_row['DESCRIPTION'] = string
-        new_rows.append(new_row)
-weather_append.columns
-
-# create a new DataFrame with the duplicated rows
-new_df = pd.DataFrame(new_rows)
-
-# reset the index of the new DataFrame
-new_df.reset_index(drop=True, inplace=True)
-new_df.head()
-
 # create a dictionary that maps the old column names to the new column names
-column_names = {'DATE': 'date_clean', 'MAX TEMPERATURE': 'TMAX', 'AVG WIND': 'AWND', 'TOTAL PRECIPITATION': 'PRCP', 'DESCRIPTION': 'trail'}
+column_names = {'Trail': 'trail', 'DATE': 'date_clean', 'MAX TEMPERATURE': 'TMAX', 'AVG WIND': 'AWND', 'TOTAL PRECIPITATION': 'PRCP'}
 
 # rename the columns using the rename() method with the column_names dictionary
-new_df = new_df.rename(columns=column_names)
-new_df.head(1)
+weather_sorted = weather_sorted.reset_index().rename(columns=column_names)
+weather_sorted.head(1)
 
 # %%
-len(new_df)
+len(weather_sorted)
 
 # %%
 model_df['date_clean'] = pd.to_datetime(model_df['date_clean'])
 model_df['date_clean'] = model_df['date_clean'].dt.date
 
+print("checkpoint bogie")
+print(weather_sorted.head(30))
+
 # weather_data_main = pd.concat([model_df, new_df], axis=0)
-weather_data_main = new_df.copy()
+weather_data_main = weather_sorted.copy()
+print(weather_data_main.columns)
 weather_data_main = weather_data_main.drop_duplicates(subset=['date_clean', 'trail'])
+
+print("checkpoint zdog")
+print(weather_data_main.head(30))
+
 print("model_df date min")
 print(model_df['date_clean'].min())
 print("model_df date max")
 print(model_df['date_clean'].max())
-print("predict_df date min")
-print(new_df['date_clean'].min())
-print("predict_df date max")
-print(new_df['date_clean'].max())
+# print("predict_df date min")
+# print(new_df['date_clean'].min())
+# print("predict_df date max")
+# print(new_df['date_clean'].max())
 
 # ## QA NOTE: Stopping At March 16th, 2023 because that's when CORA history ends
 
-weather_data_main.sort_values('date_clean', ascending = False).head(15)['date_clean'].unique()
+# weather_data_main.sort_values('date_clean', ascending = False).head(15)['date_clean'].unique()
 
 # %% [markdown]
 # ### Check to see if we have necessary dates 
@@ -590,15 +501,18 @@ weather_data_main.sort_values('date_clean', ascending = False).head(15)['date_cl
 # else:
 #     print("GOOD we have the proper data needed")
 
+
 # # Feature Engineering # Define Lookbacks (# of days for each feature)
+weather_data_main = weather_data_main.sort_values(['trail','date_clean'])
+
 for i in lookback_days_list:
     for col in ['PRCP', 'TMAX']:
         if col == 'PRCP':
-            # Calculate the cumulative sum of 'PRCP' for the past X days
-            weather_data_main[f'{col}_{i}d'] = weather_data_main[col].rolling(window=i).sum().shift(1)
+            # Calculate the cumulative sum of 'PRCP' for the past X days including today
+            weather_data_main[f'{col}_{i}d'] = weather_data_main[col].rolling(window=i, min_periods=1).sum()
         else:
-            # Calculate the average of 'AWND' and 'TAVG' for the past X days
-            weather_data_main[f'{col}_{i}d'] = weather_data_main[col].rolling(window=i).mean().shift(1)
+            # Calculate the average of 'AWND' and 'TAVG' for the past X days including today
+            weather_data_main[f'{col}_{i}d'] = weather_data_main[col].rolling(window=i, min_periods=1).mean()
 
 # Replace missing values with 0
 weather_data_main.fillna(0, inplace=True)
@@ -620,9 +534,9 @@ model_df['target'] = model_df['target'].astype('int64')
 # Our training data is not perfect, often times a trail steward could be a day or so late to update the facebook page
 # let's override trails to be CLOSED when there is at least 0.5 inches of rain
 
-prcp_override = 0.4
-prcp_override_2_days = 1.0
-prcp_override_3_days = 2.0
+prcp_override = 0.50
+prcp_override_2_days = 1.25
+prcp_override_3_days = 2.25
 
 
 # Update 'target' based on condition
@@ -633,45 +547,72 @@ model_df['target'] = np.where(model_df['PRCP_3d'] >= prcp_override_3_days, 0, mo
 
 ### Try PCA on PRCP + AWND, PRCP + TEMPERATURE
 
-# from sklearn.decomposition import PCA
-# from sklearn.preprocessing import StandardScaler
+cols_to_keep =  ['date_clean', 'trail', 'target', 'PRCP', 'PRCP_2d', 'PRCP_3d', 'PRCP_5d', 'PC1_1d', 'PC1_5d'] 
 
-# def add_principal_components(df):
-#     # Function to perform PCA on given columns and return principal components
-#     def perform_pca(columns, n_components=1):
-#         scaler = StandardScaler()
-#         scaled_data = scaler.fit_transform(df[columns])
-#         pca = PCA(n_components=n_components)
-#         principal_components = pca.fit_transform(scaled_data)
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+
+def add_principal_components(df):
+    # Function to perform PCA on given columns and return principal components
+    def perform_pca(columns, n_components=1):
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(df[columns])
+        pca = PCA(n_components=n_components)
+        principal_components = pca.fit_transform(scaled_data)
         
-#         # Print explained variance ratios
-#         print(f"Explained variance ratios for {columns}: {pca.explained_variance_ratio_}")
+        # Print explained variance ratios
+        print(f"Explained variance ratios for {columns}: {pca.explained_variance_ratio_}")
         
-#         return principal_components
+        return principal_components
 
-#     # Perform PCA on the first set of columns
-#     principal_components_1 = perform_pca(['AWND', 'TMAX', 'PRCP'])
-#     principal_df_1 = pd.DataFrame(data=principal_components_1, columns=['PC1_1d'])
+    # Perform PCA on the first set of columns
+    principal_components_1 = perform_pca(['AWND', 'TMAX', 'PRCP'])
+    principal_df_1 = pd.DataFrame(data=principal_components_1, columns=['PC1_1d'])
     
-#     # Perform PCA on the second set of columns
-#     principal_components_2 = perform_pca(['TMAX_2d', 'PRCP_2d'])
-#     principal_df_2 = pd.DataFrame(data=principal_components_2, columns=['PC1_2d'])
+    # Perform PCA on the second set of columns
+    principal_components_2 = perform_pca(['TMAX_5d', 'PRCP_5d'])
+    principal_df_2 = pd.DataFrame(data=principal_components_2, columns=['PC1_5d'])
     
-#     # Concatenate original DataFrame and principal components
-#     final_df = pd.concat([df.reset_index(drop=True), principal_df_1.reset_index(drop=True), principal_df_2.reset_index(drop=True)], axis=1)
-#     keep_columns = [col for col in ['date_clean', 'trail', 'target', 'PRCP', 'PRCP_2d', 'PRCP_3d', 'PRCP_5d', 'PC1_1d', 'PC1_2d'] if col in df.columns]
-#     final_df = final_df[keep_columns]
-# # date_clean,trail,AWND,PRCP,TMAX,PRCP_2d,TMAX_2d,PRCP_3d,TMAX_3d,PRCP_5d,TMAX_5d,target,PC1,PC2,PC3
+    # Concatenate original DataFrame and principal components
+    final_df = pd.concat([df.reset_index(drop=True), principal_df_1.reset_index(drop=True), principal_df_2.reset_index(drop=True)], axis=1)
+    keep_columns = [col for col in ['date_clean', 'trail', 'target', 'PRCP', 'PRCP_2d', 'PRCP_3d', 'PRCP_5d', 'PC1_1d', 'PC1_5d'] if col in df.columns]
+    final_df = final_df[keep_columns]
 
-#     return final_df
+    return final_df
 
-# # Apply function
-# model_df_with_pca = add_principal_components(model_df)
-# weather_data_main_future_with_pca = add_principal_components(weather_data_main_future)
+# Apply function
+model_df_with_pca = add_principal_components(model_df)
+weather_data_main_future_with_pca = add_principal_components(weather_data_main_future)
+
+
+def keep_selected_columns(df, cols_to_keep):
+    # Filter columns that exist in the DataFrame
+    filtered_columns = [col for col in cols_to_keep if col in df.columns]
+    # Return DataFrame with selected columns
+    return df[filtered_columns]
+
 
 ####### Write Out Data
+
+cols_to_keep = ['date_clean', 'trail', 'target', 'PRCP', 
+# 'PRCP_2d', 
+'PRCP_3d', 
+'PRCP_5d', 
+# 'TMAX', 
+# 'AWND',
+'TMAX_5d'
+]
+
+
+model_df = keep_selected_columns(model_df, cols_to_keep)
+weather_data_main_future = keep_selected_columns(weather_data_main_future, cols_to_keep)
+
 model_df.to_csv('data/01_mtb_model_df_out.csv')
+
 weather_data_main_future.to_csv('data/01_mtb_weather_data_main_future_out.csv')
+
+print(weather_data_main_future.sort_values(['trail','date_clean']).head(15))
+
 
 # model_df_with_pca.to_csv('data/01_mtb_model_df_out.csv')
 # weather_data_main_future_with_pca.to_csv('data/01_mtb_weather_data_main_future_out.csv')

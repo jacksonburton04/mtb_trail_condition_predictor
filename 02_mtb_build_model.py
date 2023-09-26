@@ -70,16 +70,13 @@ shap_values_all = []
 log_loss_evals = []  
 
 print("modeling started, will take a while")
-# New Param Grid 7/21
+
 param_dist = {
     'n_estimators': range(50, 200, 50),
     'max_depth': range(2, 5),
-    'min_child_weight': range(15, 50),
-    # 'gamma': [i/10.0 for i in range(0, 10)],
-    # 'subsample': [i/10.0 for i in range(3, 9)],
-    # 'colsample_bytree': [i/10.0 for i in range(7, 11)],
+    'min_child_weight': range(10, 50),
     'learning_rate': [0.01, 0.03, 0.05],
-    'reg_lambda': [1, 2, 3],
+    'reg_lambda': [2, 3],
     'reg_alpha': [1, 2, 3]
 }
 
@@ -105,7 +102,7 @@ for trail in unique_trails:
     # RandomizedSearchCV
     random_search = RandomizedSearchCV(estimator=xgb,
                                        param_distributions=param_dist,
-                                       n_iter=300,
+                                       n_iter=700,
                                        scoring='neg_log_loss',
                                        cv=skf,
                                        verbose=0, 

@@ -7,12 +7,13 @@ import boto3
 
 # Read the CSV file
 pivot_df = pd.read_csv('data/03_preds_viz.csv')
+del pivot_df['Milford Trails']
 pivot_df['Date'] = pd.to_datetime(pivot_df['Date'], errors='coerce')
 
 # ROUND PREDS DOWN TO THE NEXT LOWEST 5
 cols = [col for col in pivot_df.columns if col != 'Date']
 
-pivot_df[cols] = pivot_df[cols].apply(lambda x: (x // 5) * 5)
+pivot_df[cols] = pivot_df[cols].apply(lambda x: (x // 10) * 10)
 
 # Define custom colormap
 cmap = mcolors.LinearSegmentedColormap.from_list("n", ["red", "yellow", "green"])

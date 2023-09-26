@@ -46,19 +46,25 @@ def classify_confidence_level(confidence):
     else:
         return 'ERROR'
 
-# trained_features_order = ['PRCP', 'PRCP_2d', 'PRCP_3d', 'PRCP_5d', 
-# 'PC1_1d', 
-# # 'PC2_1d', 
-# 'PC1_2d']
+# trained_features_order = ['PRCP', 'PRCP_2d', 'PRCP_3d', 'PRCP_5d', 'PC1_1d', 'PC1_5d']
 
-trained_features_order = ['AWND', 'PRCP', 'TMAX', 
-'PRCP_2d', 'TMAX_2d', 
-'PRCP_3d', 'TMAX_3d', 
-# 'PRCP_4d', 'TMAX_4d', 
- 'PRCP_5d', 'TMAX_5d' 
-#  'PRCP_6d', 'TMAX_6d', 
-#  'PRCP_7d', 'TMAX_7d'
- ]
+trained_features_order = ['PRCP', 
+# 'PRCP_2d', 
+'PRCP_3d', 
+'PRCP_5d', 
+# 'TMAX', 
+# 'AWND',
+'TMAX_5d'
+]
+
+# trained_features_order = ['AWND', 'PRCP', 'TMAX', 
+# 'PRCP_2d', 'TMAX_2d', 
+# 'PRCP_3d', 'TMAX_3d', 
+# # 'PRCP_4d', 'TMAX_4d', 
+#  'PRCP_5d', 'TMAX_5d' 
+# #  'PRCP_6d', 'TMAX_6d', 
+# #  'PRCP_7d', 'TMAX_7d'
+#  ]
 
 for trail, model in trail_models.items():
     trail_future_indices = weather_data_main_future["trail"] == trail
@@ -172,19 +178,6 @@ output_df_no_dups['Chance of Being Open'] = output_df_no_dups['Chance of Being O
 
 # Create a new column 'Date_Str' for string formatted dates
 output_df_no_dups['Date_Str'] = output_df_no_dups['Date'].dt.strftime('%A, %m-%d')
-
-# # Calculate average 'Chance of Being Open' for each trail
-# trail_avgs = output_df_no_dups.groupby('CORA Trail')['Chance of Being Open'].mean().sort_values(ascending=False)
-
-# # Pivot the DataFrame using 'Date' instead of 'Date_Str'
-# pivot_df = output_df_no_dups.pivot(index='Date', columns='CORA Trail', values='Chance of Being Open')
-
-# # Reorder the columns based on their average 'Chance of Being Open'
-# pivot_df = pivot_df[trail_avgs.index]
-# print(pivot_df)
-
-# ## WRITE OUT FOR VISUALIZE SCIPT
-# pivot_df.to_csv('03_preds_viz.csv')
 
 # Pivot the DataFrame using 'Date' instead of 'Date_Str'
 pivot_df = output_df_no_dups.pivot(index='Date', columns='CORA Trail', values='Chance of Being Open')
